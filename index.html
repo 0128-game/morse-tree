@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Morse Full Tree Trainer</title>
+    <style>
+        body { background-color: #1a1a1a; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        #screen { width: 90vw; height: 60vh; border: 2px solid #333; position: relative; background: #000; overflow: auto; border-radius: 10px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
+        .node { position: absolute; width: 35px; height: 35px; border: 1px solid #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #888; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: #111; transform: translate(-50%, -50%); }
+        .node.active { background-color: #00ff88; color: black; font-weight: bold; box-shadow: 0 0 20px #00ff88; border-color: #fff; z-index: 10; scale: 1.2; }
+        .connection { position: absolute; background: #222; height: 2px; transform-origin: left center; z-index: 0; }
+        #controls { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        #display-area { text-align: center; margin-bottom: 10px; }
+        #current-char { font-size: 48px; color: #00ff88; font-weight: bold; height: 60px; }
+        #history { font-size: 18px; color: #aaa; font-family: monospace; }
+        .key-visual { display: flex; gap: 30px; }
+        .key { padding: 20px; border: 2px solid #555; border-radius: 8px; background: #333; width: 100px; text-align: center; font-weight: bold; }
+        .key.pressing { background: #00ff88; color: black; border-color: #fff; transform: translateY(4px); }
+        .label { font-size: 12px; margin-top: 8px; color: #888; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <div id="display-area">
+        <div id="current-char">START</div>
+        <div id="history">History: -</div>
+    </div>
+
+    <div id="screen">
+        <div id="tree-container"></div>
+    </div>
+
+    <div id="controls">
+        <div class="key-visual">
+            <div>
+                <div id="key-straight" class="key">SPACE</div>
+                <div class="label">Straight Key</div>
+            </div>
+            <div>
+                <div id="key-left" class="key">←</div>
+                <div id="label-left" class="label">DIT (・)</div>
+            </div>
+            <div>
+                <div id="key-right" class="key">→</div>
+                <div id="label-right" class="label">DAH (－)</div>
+            </div>
+        </div>
+        
+        <div style="background: #222; padding: 15px; border-radius: 8px; display: flex; gap: 20px;">
+            <label style="cursor:pointer"><input type="checkbox" id="paddle-reverse"> 左右反転 (Reverse)</label>
+            <button onclick="resetTree()" style="cursor:pointer; background:#444; color:white; border:none; padding:5px 15px; border-radius:4px;">RESET (ESC)</button>
+        </div>
+    </div>
+
+    <script>
+        // モールス信号の全アルファベット構造
+        // 形式: [文字, 親Index, タイプ(0:dit, 1:dah)]
+        const alphabet = [
+            {char: "START", code: ""},
+            {char: "E", code: "."}, {char: "T", code: "-"},
+            {char: "I", code: ".."}, {char: "A", code: ".-"}, {char: "N", code: "-."}, {char: "M", code: "--"},
+            {char: "S", code: "..."}, {char: "U", code: "..-"}, {char: "R", code: ".-."}, {char: "W", code: ".--"},
+            {char: "D", code: "-.."}, {char: "K", code: "-.-"}, {char: "G", code: "--."}, {char: "O", code: "---"},
+            {char: "H", code: "...."}, {char: "V", code: "...-"}, {char: "F", code: "..-."}, {char: "L", code: ".-.."},
+            {char: "P", code: ".--."}, {char: "J", code: ".---"}, {char: "B", code: "-..."}, {char: "X", code: "-..-"},
+            {char: "C", code: "-.-."}, {char: "Y", code: "-.--"}, {char: "Q", code: "--.-"}, {char: "Z", code: "--.."}
+        ];
+
+        let currentIndex = 0;
+        let history = [];
+        let pressStartTime = 0;
+        const DIT_THRESHOLD = 200;
+
+        function initTree() {
+            const container = document.getElementById('tree-container');
+            const screen = document.getElementById('screen');
+            const centerX = screen.clientWidth / 2;
+            const baseY = 60;
+            const stepX = 50;
+            const stepY = 80;
+
+            alphabet.forEach((item, index) => {
+                const node = document.createElement('div');
+                node.className = 'node';
+                node.id = `node-${index}`;
+                node.innerText = item.char;
+
+                // 配置計算 (モールス符号の長さと内容に基づく)
+                const level = item.code.length;
+                let xOffset = 0;
+                for(let i=0; i<level; i++) {
+                    const dir = item.code[i] === '.' ? 1 : -1;
+                    xOffset += (dir * (centerX / Math.pow(2, i+1)));
+                }
+
+                node.style.left = (centerX + xOffset) + 'px';
+                node.style.top = (baseY + (level * stepY)) + 'px';
+                container.appendChild(node);
+            });
+            updateActiveNode();
+        }
+
+        function updateActiveNode() {
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+            const active = document.getElementById(`node-${currentIndex}`);
+            active.classList.add('active');
+            document.getElementById('current-char').innerText = alphabet[currentIndex].char;
+            
+            // スクロール追従
+            active.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+
+        function move(type) {
+            const currentCode = alphabet[currentIndex].code;
+            const nextCode = currentCode + (type === 'dit' ? '.' : '-');
+            const nextIndex = alphabet.findIndex(a => a.code === nextCode);
+
+            if (nextIndex !== -1) {
+                currentIndex = nextIndex;
+                history.push(type === 'dit' ? '・' : '－');
+                document.getElementById('history').innerText = "History: " + history.join(' ');
+                updateActiveNode();
+            }
+        }
+
+        function resetTree() {
+            currentIndex = 0;
+            history = [];
+            document.getElementById('history').innerText = "History: -";
+            updateActiveNode();
+        }
+
+        // キーボードイベント
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            if (e.code === 'Space') {
+                pressStartTime = Date.now();
+                document.getElementById('key-straight').classList.add('pressing');
+                e.preventDefault();
+            }
+            if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+                const isReverse = document.getElementById('paddle-reverse').checked;
+                const isLeft = e.code === 'ArrowLeft';
+                document.getElementById(isLeft ? 'key-left' : 'key-right').classList.add('pressing');
+                move(((!isReverse && isLeft) || (isReverse && !isLeft)) ? 'dit' : 'dah');
+                e.preventDefault();
+            }
+            if (e.code === 'Escape') resetTree();
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                const duration = Date.now() - pressStartTime;
+                move(duration < DIT_THRESHOLD ? 'dit' : 'dah');
+                document.getElementById('key-straight').classList.remove('pressing');
+            }
+            if (e.code === 'ArrowLeft') document.getElementById('key-left').classList.remove('pressing');
+            if (e.code === 'ArrowRight') document.getElementById('key-right').classList.remove('pressing');
+        });
+
+        window.onload = initTree;
+    </script>
+</body>
+</html>
