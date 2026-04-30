@@ -2,24 +2,48 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Morse Full Tree Trainer</title>
+    <title>Morse Visual Tree Trainer</title>
     <style>
-        body { background-color: #1a1a1a; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
-        #screen { width: 90vw; height: 60vh; border: 2px solid #333; position: relative; background: #000; overflow: auto; border-radius: 10px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); }
-        .node { position: absolute; width: 35px; height: 35px; border: 1px solid #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #888; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); background: #111; transform: translate(-50%, -50%); }
-        .node.active { background-color: #00ff88; color: black; font-weight: bold; box-shadow: 0 0 20px #00ff88; border-color: #fff; z-index: 10; scale: 1.2; }
-        .connection { position: absolute; background: #222; height: 2px; transform-origin: left center; z-index: 0; }
-        #controls { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        #display-area { text-align: center; margin-bottom: 10px; }
-        #current-char { font-size: 48px; color: #00ff88; font-weight: bold; height: 60px; }
-        #history { font-size: 18px; color: #aaa; font-family: monospace; }
-        .key-visual { display: flex; gap: 30px; }
-        .key { padding: 20px; border: 2px solid #555; border-radius: 8px; background: #333; width: 100px; text-align: center; font-weight: bold; }
-        .key.pressing { background: #00ff88; color: black; border-color: #fff; transform: translateY(4px); }
-        .label { font-size: 12px; margin-top: 8px; color: #888; text-transform: uppercase; }
+        body { background-color: #1a1a1a; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; overflow: hidden;}
+        h1 { font-size: 20px; margin: 0 0 10px 0; color: #aaa; }
+        #screen { width: 95vw; height: 70vh; border: 2px solid #333; position: relative; background: #000; overflow: auto; border-radius: 12px; box-shadow: inset 0 0 30px rgba(0,0,0,0.7); }
+        #tree-container { position: relative; width: 2000px; height: 1000px; transform-origin: 0 0; transition: transform 0.1s ease-out; }
+        
+        /* ノードのスタイル */
+        .node { position: absolute; width: 40px; height: 40px; border: 2px solid #444; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #888; transition: all 0.3s ease; background: #111; transform: translate(-50%, -50%); z-index: 10; cursor: pointer; }
+        .node:hover { border-color: #777; color: #fff; }
+        .node.active { background-color: #00ff88; color: black; font-weight: bold; box-shadow: 0 0 25px #00ff88; border-color: #fff; scale: 1.2; z-index: 20; }
+        
+        /* 接続線のスタイル */
+        .connection { position: absolute; background: #333; height: 2px; transform-origin: left center; z-index: 5; transition: background 0.3s; }
+        .connection.highlight { background: #00ff88; height: 3px; box-shadow: 0 0 10px #00ff88; z-index: 6; }
+        
+        /* 線上のラベル（・ー） */
+        .line-label { position: absolute; font-size: 18px; font-weight: bold; transform: translate(-50%, -50%); z-index: 15; pointer-events: none; opacity: 0.7; transition: opacity 0.3s; }
+        .line-label.dit { color: #55efc4; } /* 短点の色 */
+        .line-label.dah { color: #fab1a0; } /* 長点の色 */
+        .line-label.highlight { opacity: 1; font-size: 22px; text-shadow: 0 0 10px currentColor; }
+
+        /* コントロール周り */
+        #controls { margin-top: 15px; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 800px;}
+        #display-area { text-align: center; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px; border: 1px solid #333; width: 100%; box-sizing: border-box;}
+        #current-char { font-size: 48px; color: #00ff88; font-weight: bold; height: 55px; line-height: 55px; margin-bottom: 5px;}
+        #history { font-size: 16px; color: #aaa; font-family: monospace; min-height: 1.2em; word-break: break-all;}
+        
+        .key-visual { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .key-group { text-align: center; }
+        .key { padding: 15px; border: 2px solid #555; border-radius: 8px; background: #333; width: 90px; text-align: center; font-weight: bold; cursor: pointer; user-select: none; transition: background 0.1s; }
+        .key.pressing { background: #00ff88; color: black; border-color: #fff; transform: translateY(3px); box-shadow: 0 2px 0 #00b360; }
+        .label { font-size: 11px; margin-top: 6px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        
+        #config-bar { background: #222; padding: 10px 20px; border-radius: 8px; display: flex; gap: 20px; align-items: center; border: 1px solid #333; }
+        button { cursor:pointer; background:#444; color:white; border:none; padding: 6px 12px; border-radius:4px; transition: background 0.2s; }
+        button:hover { background: #555; }
     </style>
 </head>
 <body>
+
+    <h1>Morse Code Binary Tree Trainer</h1>
 
     <div id="display-area">
         <div id="current-char">START</div>
@@ -27,34 +51,38 @@
     </div>
 
     <div id="screen">
-        <div id="tree-container"></div>
+        <div id="tree-container">
+            <div id="connections-layer"></div>
+            <div id="labels-layer"></div>
+            <div id="nodes-layer"></div>
+        </div>
     </div>
 
     <div id="controls">
         <div class="key-visual">
-            <div>
+            <div class="key-group">
                 <div id="key-straight" class="key">SPACE</div>
                 <div class="label">Straight Key</div>
             </div>
-            <div>
+            <div class="key-group">
                 <div id="key-left" class="key">←</div>
                 <div id="label-left" class="label">DIT (・)</div>
             </div>
-            <div>
+            <div class="key-group">
                 <div id="key-right" class="key">→</div>
                 <div id="label-right" class="label">DAH (－)</div>
             </div>
         </div>
         
-        <div style="background: #222; padding: 15px; border-radius: 8px; display: flex; gap: 20px;">
-            <label style="cursor:pointer"><input type="checkbox" id="paddle-reverse"> 左右反転 (Reverse)</label>
-            <button onclick="resetTree()" style="cursor:pointer; background:#444; color:white; border:none; padding:5px 15px; border-radius:4px;">RESET (ESC)</button>
+        <div id="config-bar">
+            <label style="cursor:pointer; user-select:none;"><input type="checkbox" id="paddle-reverse"> 左右反転 (Reverse)</label>
+            <button onclick="resetTree()">RESET (ESC)</button>
+            <span style="color: #666; font-size: 12px;">※ドラッグ・ホイールでツリー移動可</span>
         </div>
     </div>
 
     <script>
-        // モールス信号の全アルファベット構造
-        // 形式: [文字, 親Index, タイプ(0:dit, 1:dah)]
+        // 全アルファベットデータ (コード順)
         const alphabet = [
             {char: "START", code: ""},
             {char: "E", code: "."}, {char: "T", code: "-"},
@@ -71,43 +99,128 @@
         let pressStartTime = 0;
         const DIT_THRESHOLD = 200;
 
-        function initTree() {
-            const container = document.getElementById('tree-container');
-            const screen = document.getElementById('screen');
-            const centerX = screen.clientWidth / 2;
-            const baseY = 60;
-            const stepX = 50;
-            const stepY = 80;
+        // ツリービュー管理
+        const screen = document.getElementById('screen');
+        const container = document.getElementById('tree-container');
+        let scale = 1, pX = 0, pY = 0;
 
+        function initTree() {
+            const nodesLayer = document.getElementById('nodes-layer');
+            const connectionsLayer = document.getElementById('connections-layer');
+            const labelsLayer = document.getElementById('labels-layer');
+            
+            const totalWidth = 1900;
+            const baseY = 50;
+            const stepY = 90;
+            const centerX = totalWidth / 2;
+
+            // 1. ノード配置計算と描画
             alphabet.forEach((item, index) => {
+                const level = item.code.length;
+                let xOffset = 0;
+                for(let i=0; i<level; i++) {
+                    // 動画のロジック: 短点で右、長点で左
+                    const dir = item.code[i] === '.' ? 1 : -1;
+                    xOffset += (dir * (centerX / Math.pow(2, i+1)));
+                }
+                item.x = centerX + xOffset;
+                item.y = baseY + (level * stepY);
+
                 const node = document.createElement('div');
                 node.className = 'node';
                 node.id = `node-${index}`;
                 node.innerText = item.char;
-
-                // 配置計算 (モールス符号の長さと内容に基づく)
-                const level = item.code.length;
-                let xOffset = 0;
-                for(let i=0; i<level; i++) {
-                    const dir = item.code[i] === '.' ? 1 : -1;
-                    xOffset += (dir * (centerX / Math.pow(2, i+1)));
-                }
-
-                node.style.left = (centerX + xOffset) + 'px';
-                node.style.top = (baseY + (level * stepY)) + 'px';
-                container.appendChild(node);
+                node.style.left = item.x + 'px';
+                node.style.top = item.y + 'px';
+                node.onclick = () => jumpToNode(index);
+                nodesLayer.appendChild(node);
             });
-            updateActiveNode();
+
+            // 2. 線とラベルの描画
+            alphabet.forEach((item, index) => {
+                if (item.code === "") return; // STARTは親がない
+
+                // 親を探す
+                const parentCode = item.code.slice(0, -1);
+                const parentIndex = alphabet.findIndex(a => a.code === parentCode);
+                if (parentIndex === -1) return;
+                const parent = alphabet[parentIndex];
+
+                const isDit = item.code.slice(-1) === '.';
+
+                // 線の描画
+                const dx = item.x - parent.x;
+                const dy = item.y - parent.y;
+                const length = Math.sqrt(dx*dx + dy*dy);
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                const line = document.createElement('div');
+                line.className = 'connection';
+                line.id = `line-${parentIndex}-${index}`;
+                line.style.width = length + 'px';
+                line.style.left = parent.x + 'px';
+                line.style.top = parent.y + 'px';
+                line.style.transform = `rotate(${angle}deg)`;
+                connectionsLayer.appendChild(line);
+
+                // ラベルの描画 (線の中央)
+                const label = document.createElement('div');
+                label.className = `line-label ${isDit ? 'dit' : 'dah'}`;
+                label.id = `label-${parentIndex}-${index}`;
+                label.innerText = isDit ? '・' : '－';
+                label.style.left = (parent.x + item.x) / 2 + 'px';
+                label.style.top = (parent.y + item.y) / 2 + 'px';
+                labelsLayer.appendChild(label);
+            });
+
+            // 初期位置
+            pX = (screen.clientWidth - totalWidth) / 2;
+            updateTransform();
+            updateActiveNode(true);
         }
 
-        function updateActiveNode() {
-            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
-            const active = document.getElementById(`node-${currentIndex}`);
-            active.classList.add('active');
+        // ビュー操作
+        function updateTransform() { container.style.transform = `translate(${pX}px, ${pY}px) scale(${scale})`; }
+        screen.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            scale = Math.min(Math.max(0.5, scale * delta), 2);
+            updateTransform();
+        });
+        let isDragging = false, lastX, lastY;
+        screen.addEventListener('mousedown', (e) => { if(e.target === screen || e.target === container) { isDragging = true; lastX = e.clientX; lastY = e.clientY; } });
+        window.addEventListener('mousemove', (e) => { if(isDragging) { pX += e.clientX - lastX; pY += e.clientY - lastY; lastX = e.clientX; lastY = e.clientY; updateTransform(); } });
+        window.addEventListener('mouseup', () => isDragging = false);
+
+
+        function updateActiveNode(isInit = false) {
+            // 全解除
+            document.querySelectorAll('.node, .connection, .line-label').forEach(el => el.classList.remove('active', 'highlight'));
+            
+            const activeNode = document.getElementById(`node-${currentIndex}`);
+            activeNode.classList.add('active');
             document.getElementById('current-char').innerText = alphabet[currentIndex].char;
             
-            // スクロール追従
-            active.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            // 経路のハイライト
+            let tempIndex = currentIndex;
+            while(tempIndex > 0) {
+                const current = alphabet[tempIndex];
+                const parentCode = current.code.slice(0, -1);
+                const parentIndex = alphabet.findIndex(a => a.code === parentCode);
+                
+                document.getElementById(`line-${parentIndex}-${tempIndex}`)?.classList.add('highlight');
+                document.getElementById(`label-${parentIndex}-${tempIndex}`)?.classList.add('highlight');
+                
+                tempIndex = parentIndex;
+            }
+
+            // フォーカス追従 (初期化時以外)
+            if(!isInit) {
+                const targetX = -alphabet[currentIndex].x * scale + screen.clientWidth / 2;
+                const targetY = -alphabet[currentIndex].y * scale + screen.clientHeight / 2;
+                pX = targetX; pY = targetY;
+                updateTransform();
+            }
         }
 
         function move(type) {
@@ -130,32 +243,34 @@
             updateActiveNode();
         }
 
-        // キーボードイベント
+        function jumpToNode(index) {
+            currentIndex = index;
+            history = alphabet[index].code.split('').map(c => c === '.' ? '・' : '－');
+            document.getElementById('history').innerText = "History: " + (history.length ? history.join(' ') : "-");
+            updateActiveNode();
+        }
+
+        // キーボード・パドルロジック
+        const keys = { space: false, left: false, right: false };
+        function updatePaddleVisuals() {
+            const isReverse = document.getElementById('paddle-reverse').checked;
+            document.getElementById('label-left').innerText = isReverse ? "DAH (－)" : "DIT (・)";
+            document.getElementById('label-right').innerText = isReverse ? "DIT (・)" : "DAH (－)";
+        }
+        document.getElementById('paddle-reverse').addEventListener('change', updatePaddleVisuals);
+
         window.addEventListener('keydown', (e) => {
             if (e.repeat) return;
-            if (e.code === 'Space') {
-                pressStartTime = Date.now();
-                document.getElementById('key-straight').classList.add('pressing');
-                e.preventDefault();
-            }
-            if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
-                const isReverse = document.getElementById('paddle-reverse').checked;
-                const isLeft = e.code === 'ArrowLeft';
-                document.getElementById(isLeft ? 'key-left' : 'key-right').classList.add('pressing');
-                move(((!isReverse && isLeft) || (isReverse && !isLeft)) ? 'dit' : 'dah');
-                e.preventDefault();
-            }
+            if (e.code === 'Space') { keys.space = true; pressStartTime = Date.now(); document.getElementById('key-straight').classList.add('pressing'); e.preventDefault(); }
+            if (e.code === 'ArrowLeft') { keys.left = true; document.getElementById('key-left').classList.add('pressing'); const isReverse = document.getElementById('paddle-reverse').checked; move(isReverse ? 'dah' : 'dit'); e.preventDefault(); }
+            if (e.code === 'ArrowRight') { keys.right = true; document.getElementById('key-right').classList.add('pressing'); const isReverse = document.getElementById('paddle-reverse').checked; move(isReverse ? 'dit' : 'dah'); e.preventDefault(); }
             if (e.code === 'Escape') resetTree();
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.code === 'Space') {
-                const duration = Date.now() - pressStartTime;
-                move(duration < DIT_THRESHOLD ? 'dit' : 'dah');
-                document.getElementById('key-straight').classList.remove('pressing');
-            }
-            if (e.code === 'ArrowLeft') document.getElementById('key-left').classList.remove('pressing');
-            if (e.code === 'ArrowRight') document.getElementById('key-right').classList.remove('pressing');
+            if (e.code === 'Space') { const duration = Date.now() - pressStartTime; move(duration < DIT_THRESHOLD ? 'dit' : 'dah'); keys.space = false; document.getElementById('key-straight').classList.remove('pressing'); }
+            if (e.code === 'ArrowLeft') { keys.left = false; document.getElementById('key-left').classList.remove('pressing'); }
+            if (e.code === 'ArrowRight') { keys.right = false; document.getElementById('key-right').classList.remove('pressing'); }
         });
 
         window.onload = initTree;
